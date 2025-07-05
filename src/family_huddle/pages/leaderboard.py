@@ -1,0 +1,287 @@
+"""Leaderboard page for displaying pool rankings."""
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import datetime
+
+
+def show(db):
+    """Display the leaderboard page."""
+    st.title("📊 Leaderboards")
+    
+    current_profile = st.session_state.current_profile
+    
+    if not current_profile:
+        st.warning("Please select or create a profile first!")
+        st.stop()
+    
+    # Get user's pools
+    participants = db.table('pool_participants').select("*").eq(
+        'profile_id', current_profile['profile_id']
+    ).execute()
+    
+    if not participants.data:
+        st.info("You haven't joined any pools yet!")
+        return
+    
+    # Pool selector
+    pool_options = []
+    pool_map = {}
+    
+    for participant in participants.data:
+        pool = db.table('pools').select("*").eq(
+            'pool_id', participant['pool_id']
+        ).execute().data[0]
+        
+        pool_name = f"{pool['pool_name']} ({pool['season_year']})"
+        pool_options.append(pool_name)
+        pool_map[pool_name] = pool
+    
+    selected_pool_name = st.selectbox("Select Pool", pool_options)
+    selected_pool = pool_map[selected_pool_name]
+    
+    st.divider()
+    
+    # Display pool info
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Pool Name", selected_pool['pool_name'])
+    
+    with col2:
+        st.metric("Season", selected_pool['season_year'])
+    
+    with col3:
+        # Get participant count
+        all_participants = db.table('pool_participants').select("*").eq(
+            'pool_id', selected_pool['pool_id']
+        ).execute()
+        st.metric("Participants", len(all_participants.data) if all_participants.data else 0)
+    
+    # Tab layout for different views
+    tab1, tab2, tab3 = st.tabs(["Overall Standings", "Weekly Performance", "Team Performance"])
+    
+    with tab1:
+        show_overall_standings(db, selected_pool)
+    
+    with tab2:
+        show_weekly_performance(db, selected_pool)
+    
+    with tab3:
+        show_team_performance(db, selected_pool)
+
+
+def show_overall_standings(db, pool):
+    """Show overall pool standings."""
+    st.subheader("Overall Standings")
+    
+    # Get all participants
+    participants = db.table('pool_participants').select("*").eq(
+        'pool_id', pool['pool_id']
+    ).execute()
+    
+    if not participants.data:
+        st.info("No participants in this pool yet.")
+        return
+    
+    # Build standings data
+    standings_data = []
+    
+    for participant in participants.data:
+        # Get profile info
+        profile = db.table('profiles').select("*").eq(
+            'profile_id', participant['profile_id']
+        ).execute().data[0]
+        
+        # Get latest score (mock data for now)
+        scores = db.table('pool_scores').select("*").eq(
+            'pool_id', pool['pool_id']
+        ).eq('profile_id', participant['profile_id']).execute()
+        
+        # Mock some data if no scores exist
+        if not scores.data:
+            # Create mock score
+            import random
+            mock_score = {
+                'pool_id': pool['pool_id'],
+                'profile_id': participant['profile_id'],
+                'week_id': 'week_1',  # Mock week
+                'weekly_points': random.randint(20, 100),
+                'total_points': random.randint(100, 500),
+                'rank_position': None
+            }
+            db.table('pool_scores').insert(mock_score)
+            total_points = mock_score['total_points']
+        else:
+            total_points = scores.data[-1]['total_points']
+        
+        # Get team selections
+        selections = db.table('team_selections').select("*").eq(
+            'pool_id', pool['pool_id']
+        ).eq('profile_id', participant['profile_id']).execute()
+        
+        teams = []
+        if selections.data:
+            for selection in sorted(selections.data, key=lambda x: x['selection_order']):
+                team = db.table('nfl_teams').select("*").eq(
+                    'team_id', selection['team_id']
+                ).execute().data[0]
+                teams.append(f"{team['team_code']}")
+        
+        standings_data.append({
+            'Rank': 0,  # Will be calculated
+            'Name': profile['display_name'],
+            'Teams': ', '.join(teams) if teams else 'No teams selected',
+            'Total Points': total_points,
+            'Status': '✅' if participant['selections_complete'] else '⚠️ Incomplete'
+        })
+    
+    # Sort by total points and assign ranks
+    standings_data.sort(key=lambda x: x['Total Points'], reverse=True)
+    for i, standing in enumerate(standings_data):
+        standing['Rank'] = i + 1
+    
+    # Display as dataframe
+    df = pd.DataFrame(standings_data)
+    
+    # Highlight current user
+    current_profile_name = st.session_state.current_profile['display_name']
+    
+    def highlight_user(row):
+        if row['Name'] == current_profile_name:
+            return ['background-color: #ffffcc'] * len(row)
+        return [''] * len(row)
+    
+    styled_df = df.style.apply(highlight_user, axis=1)
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    
+    # Show points distribution chart
+    if len(standings_data) > 1:
+        st.subheader("Points Distribution")
+        
+        fig = px.bar(df, x='Name', y='Total Points', 
+                     title="Total Points by Participant",
+                     color='Total Points',
+                     color_continuous_scale='Blues')
+        
+        fig.update_layout(showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def show_weekly_performance(db, pool):
+    """Show weekly performance trends."""
+    st.subheader("Weekly Performance")
+    
+    # This would show weekly trends
+    st.info("Weekly performance tracking will be available once the season starts!")
+    
+    # Mock weekly data visualization
+    weeks = list(range(1, 8))
+    mock_data = []
+    
+    # Get a few participants for demo
+    participants = db.table('pool_participants').select("*").eq(
+        'pool_id', pool['pool_id']
+    ).execute()
+    
+    if participants.data:
+        for participant in participants.data[:5]:  # Show top 5
+            profile = db.table('profiles').select("*").eq(
+                'profile_id', participant['profile_id']
+            ).execute().data[0]
+            
+            import random
+            weekly_points = [random.randint(20, 80) for _ in weeks]
+            cumulative = []
+            total = 0
+            for points in weekly_points:
+                total += points
+                cumulative.append(total)
+            
+            for week, points in zip(weeks, cumulative):
+                mock_data.append({
+                    'Week': f"Week {week}",
+                    'Participant': profile['display_name'],
+                    'Cumulative Points': points
+                })
+        
+        df = pd.DataFrame(mock_data)
+        
+        fig = px.line(df, x='Week', y='Cumulative Points', color='Participant',
+                      title="Cumulative Points by Week",
+                      markers=True)
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def show_team_performance(db, pool):
+    """Show performance of selected teams."""
+    st.subheader("Team Performance Analysis")
+    
+    # Get all team selections for the pool
+    all_selections = db.table('team_selections').select("*").eq(
+        'pool_id', pool['pool_id']
+    ).execute()
+    
+    if not all_selections.data:
+        st.info("No teams have been selected yet.")
+        return
+    
+    # Count team selections
+    team_counts = {}
+    team_performance = {}
+    
+    for selection in all_selections.data:
+        team_id = selection['team_id']
+        team = db.table('nfl_teams').select("*").eq(
+            'team_id', team_id
+        ).execute().data[0]
+        
+        team_name = f"{team['team_city']} {team['team_name']}"
+        
+        if team_name not in team_counts:
+            team_counts[team_name] = 0
+            # Mock performance data
+            import random
+            team_performance[team_name] = {
+                'Wins': random.randint(0, 8),
+                'Losses': random.randint(0, 8),
+                'Points For': random.randint(150, 300),
+                'Points Against': random.randint(150, 300)
+            }
+        
+        team_counts[team_name] += 1
+    
+    # Most selected teams
+    st.markdown("#### Most Popular Teams")
+    
+    popular_df = pd.DataFrame([
+        {'Team': team, 'Times Selected': count}
+        for team, count in sorted(team_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    ])
+    
+    if not popular_df.empty:
+        fig = px.bar(popular_df, x='Times Selected', y='Team', orientation='h',
+                     title="Most Selected Teams")
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Team performance table
+    st.markdown("#### Team Performance")
+    
+    perf_data = []
+    for team, stats in team_performance.items():
+        if team in team_counts:
+            perf_data.append({
+                'Team': team,
+                'W-L': f"{stats['Wins']}-{stats['Losses']}",
+                'Win %': f"{(stats['Wins'] / (stats['Wins'] + stats['Losses']) * 100):.1f}%" if stats['Wins'] + stats['Losses'] > 0 else "0.0%",
+                'PF': stats['Points For'],
+                'PA': stats['Points Against'],
+                'Selected By': team_counts[team]
+            })
+    
+    if perf_data:
+        perf_df = pd.DataFrame(perf_data)
+        perf_df = perf_df.sort_values('Win %', ascending=False)
+        st.dataframe(perf_df, use_container_width=True, hide_index=True)

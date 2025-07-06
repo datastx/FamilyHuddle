@@ -48,7 +48,6 @@ def show_my_pools(db: "Client", current_profile: dict[str, Any]) -> None:
     """
     st.subheader("Pools I'm Participating In")
 
-    # Get user's pool participations
     participants = (
         db.table("pool_participants")
         .select("*")
@@ -61,7 +60,6 @@ def show_my_pools(db: "Client", current_profile: dict[str, Any]) -> None:
         return
 
     for participant in participants.data:
-        # Get pool details
         pool_result = db.table("pools").select("*").eq("pool_id", participant["pool_id"]).execute()
 
         if not pool_result.data:
@@ -85,7 +83,6 @@ def show_my_pools(db: "Client", current_profile: dict[str, Any]) -> None:
                     f"**Teams Selected:** {'✅ Yes' if participant['selections_complete'] else '❌ No'}"
                 )
 
-            # Show selected teams
             selections = (
                 db.table("team_selections")
                 .select("*")
@@ -98,7 +95,6 @@ def show_my_pools(db: "Client", current_profile: dict[str, Any]) -> None:
                 st.write("**Your Teams:**")
                 teams = []
                 for selection in sorted(selections.data, key=lambda x: x["selection_order"]):
-                    # Get team info
                     team_result = (
                         db.table("nfl_teams")
                         .select("*")
@@ -118,10 +114,11 @@ def show_my_pools(db: "Client", current_profile: dict[str, Any]) -> None:
                 for team in teams:
                     st.write(f"  {team}")
 
-            # Action buttons
             col1, col2 = st.columns(2)
             with col1:
-                if not participant["selections_complete"] and st.button("Select Teams", key=f"select_{pool['pool_id']}"):
+                if not participant["selections_complete"] and st.button(
+                    "Select Teams", key=f"select_{pool['pool_id']}"
+                ):
                     st.info("Go to 'Team Selection' page to pick your teams")
 
             with col2:

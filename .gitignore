@@ -214,7 +214,6 @@ __marimo__/
 
 # Project specific
 profile.stats
-uv.lock
 
 # CLAUDE.md and .claude should be tracked
 CLAUDE.md

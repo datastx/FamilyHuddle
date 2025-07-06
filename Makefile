@@ -110,6 +110,11 @@ $(PYTHON_VERSION_FILE):
 	@echo -e "$(BOLD)Creating Python version file...$(RESET)"
 	@echo "$(PYTHON_VERSION)" > $@
 
+.PHONY: lock
+lock: uv ## Regenerate uv.lock from pyproject.toml
+	@echo -e "$(BOLD)Regenerating lockfile...$(RESET)"
+	$(UV) lock
+
 .PHONY: update
 update: uv ## Update all dependencies to latest versions
 	@echo -e "$(BOLD)Updating dependencies...$(RESET)"
@@ -263,6 +268,9 @@ ruff-fix: uv $(UV_LOCK) ## Run ruff with auto-fix
 mypy: uv $(UV_LOCK) ## Run mypy type checker
 	@echo -e "$(BOLD)Running mypy...$(RESET)"
 	$(UV) run mypy $(SRC_DIR)
+
+.PHONY: type-check
+type-check: mypy ## Alias for mypy (for CI compatibility)
 
 .PHONY: pylint
 pylint: uv $(UV_LOCK) ## Run pylint
@@ -419,7 +427,7 @@ init: ## Initialize new project with best practices
 .PHONY: ci-install
 ci-install: uv ## Install dependencies for CI
 	@echo -e "$(BOLD)Installing CI dependencies...$(RESET)"
-	$(UV) sync --frozen --no-cache
+	$(UV) sync --frozen --all-extras --no-cache
 
 .PHONY: ci-test
 ci-test: uv ## Run tests for CI

@@ -365,6 +365,15 @@ docs-clean: ## Clean documentation build
 
 ##@ Build & Distribution
 
+.PHONY: requirements
+requirements: uv $(UV_LOCK) ## Export requirements.txt for deployment
+	@echo -e "$(BOLD)Exporting requirements.txt...$(RESET)"
+	$(UV) export --no-dev --format requirements-txt > requirements-temp.txt
+	@echo -e "$(BOLD)Cleaning requirements.txt (removing hashes for Streamlit)...$(RESET)"
+	@grep -v "hash=" requirements-temp.txt | grep -v "^[[:space:]]*--hash" | sed '/^[[:space:]]*$$/d' | sed 's/ \\$$//' > requirements.txt
+	@rm requirements-temp.txt
+	@echo -e "$(GREEN)✓ requirements.txt created for Streamlit deployment$(RESET)"
+
 .PHONY: build
 build: uv clean $(UV_LOCK) ## Build distribution packages
 	@echo -e "$(BOLD)Building distribution packages...$(RESET)"

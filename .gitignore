@@ -135,7 +135,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+.env*
 .envrc
 .venv
 env/
@@ -207,7 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 # Local data
-data/db/*.json
+# (removed - now using Supabase)
 
 # Streamlit
 .streamlit/secrets.toml
@@ -219,3 +219,4 @@ uv.lock
 # CLAUDE.md and .claude should be tracked
 CLAUDE.md
 .claude
+plan.md

@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 
 import streamlit as st
-from dotenv import load_dotenv
 
 if TYPE_CHECKING:
     from supabase import Client
@@ -11,8 +10,13 @@ if TYPE_CHECKING:
 from family_huddle.pages import auth, home, leaderboard, pools, team_selection
 from family_huddle.services.database import create_client
 
-# Load environment variables
-load_dotenv()
+# Load environment variables for local development
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available in production (Streamlit Cloud)
+    pass
 
 
 st.set_page_config(

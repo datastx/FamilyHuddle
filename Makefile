@@ -422,7 +422,7 @@ init: ## Initialize new project with best practices
 .PHONY: ci-install
 ci-install: uv ## Install dependencies for CI
 	@echo -e "$(BOLD)Installing CI dependencies...$(RESET)"
-	$(UV) sync --frozen --no-cache
+	$(UV) sync --frozen --all-extras --no-cache
 
 .PHONY: ci-test
 ci-test: uv ## Run tests for CI

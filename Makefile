@@ -110,6 +110,11 @@ $(PYTHON_VERSION_FILE):
 	@echo -e "$(BOLD)Creating Python version file...$(RESET)"
 	@echo "$(PYTHON_VERSION)" > $@
 
+.PHONY: lock
+lock: uv ## Regenerate uv.lock from pyproject.toml
+	@echo -e "$(BOLD)Regenerating lockfile...$(RESET)"
+	$(UV) lock
+
 .PHONY: update
 update: uv ## Update all dependencies to latest versions
 	@echo -e "$(BOLD)Updating dependencies...$(RESET)"

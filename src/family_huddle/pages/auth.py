@@ -49,76 +49,72 @@ def show_login(db: "Client") -> None:
     tab1, tab2 = st.tabs(["Login", "Sign Up"])
 
     with tab1, st.form("login_form"):
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Login", use_container_width=True)
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login", use_container_width=True)
 
-            if submitted:
-                if email and password:
-                    # Query user from database
-                    result = db.table("users").select("*").eq("email", email).execute()
+        if submitted:
+            if email and password:
+                result = db.table("users").select("*").eq("email", email).execute()
 
-                    if result.data and verify_password(password, result.data[0]["password_hash"]):
-                        user = result.data[0]
-                        st.session_state.authenticated = True
-                        st.session_state.user_id = user["user_id"]
-                        st.session_state.user_email = user["email"]
-                        st.success("Login successful!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid email or password")
+                if result.data and verify_password(password, result.data[0]["password_hash"]):
+                    user = result.data[0]
+                    st.session_state.authenticated = True
+                    st.session_state.user_id = user["user_id"]
+                    st.session_state.user_email = user["email"]
+                    st.success("Login successful!")
+                    st.rerun()
                 else:
-                    st.error("Please enter both email and password")
+                    st.error("Invalid email or password")
+            else:
+                st.error("Please enter both email and password")
 
     with tab2, st.form("signup_form"):
-            new_email = st.text_input("Email", key="signup_email")
-            new_password = st.text_input("Password", type="password", key="signup_password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            first_name = st.text_input("First Name")
-            last_name = st.text_input("Last Name")
-            submitted = st.form_submit_button("Sign Up", use_container_width=True)
+        new_email = st.text_input("Email", key="signup_email")
+        new_password = st.text_input("Password", type="password", key="signup_password")
+        confirm_password = st.text_input("Confirm Password", type="password")
+        first_name = st.text_input("First Name")
+        last_name = st.text_input("Last Name")
+        submitted = st.form_submit_button("Sign Up", use_container_width=True)
 
-            if submitted:
-                # Validation
-                if not all([new_email, new_password, confirm_password, first_name, last_name]):
-                    st.error("Please fill in all fields")
-                elif new_password != confirm_password:
-                    st.error("Passwords do not match")
-                elif len(new_password) < 6:
-                    st.error("Password must be at least 6 characters long")
+        if submitted:
+            if not all([new_email, new_password, confirm_password, first_name, last_name]):
+                st.error("Please fill in all fields")
+            elif new_password != confirm_password:
+                st.error("Passwords do not match")
+            elif len(new_password) < 6:
+                st.error("Password must be at least 6 characters long")
+            else:
+                existing = db.table("users").select("*").eq("email", new_email).execute()
+
+                if existing.data:
+                    st.error("An account with this email already exists")
                 else:
-                    # Check if user exists
-                    existing = db.table("users").select("*").eq("email", new_email).execute()
+                    hashed_pw = hash_password(new_password)
 
-                    if existing.data:
-                        st.error("An account with this email already exists")
-                    else:
-                        # Create new user
-                        hashed_pw = hash_password(new_password)
+                    user_data = {
+                        "email": new_email,
+                        "password_hash": hashed_pw,
+                        "first_name": first_name,
+                        "last_name": last_name,
+                        "is_active": True,
+                        "email_verified": False,
+                    }
 
-                        user_data = {
-                            "email": new_email,
-                            "password_hash": hashed_pw,
-                            "first_name": first_name,
-                            "last_name": last_name,
-                            "is_active": True,
-                            "email_verified": False,
+                    result = db.table("users").insert(user_data).execute()
+
+                    if result.data:
+                        profile_data = {
+                            "user_id": result.data[0]["user_id"],
+                            "profile_name": f"{first_name} {last_name}",
+                            "display_name": f"{first_name} {last_name}",
                         }
+                        db.table("profiles").insert(profile_data).execute()
 
-                        result = db.table("users").insert(user_data).execute()
-
-                        if result.data:
-                            profile_data = {
-                                "user_id": result.data[0]["user_id"],
-                                "profile_name": f"{first_name} {last_name}",
-                                "display_name": f"{first_name} {last_name}",
-                            }
-                            db.table("profiles").insert(profile_data).execute()
-
-                            st.success("Account created successfully! Please log in.")
-                            st.info("A default profile has been created for you.")
-                        else:
-                            st.error("Error creating account. Please try again.")
+                        st.success("Account created successfully! Please log in.")
+                        st.info("A default profile has been created for you.")
+                    else:
+                        st.error("Error creating account. Please try again.")
 
 
 def show_profile(db: "Client") -> None:
@@ -134,7 +130,6 @@ def show_profile(db: "Client") -> None:
 
     user_id = st.session_state.user_id
 
-    # Get user info
     user = db.table("users").select("*").eq("user_id", user_id).execute().data[0]
 
     col1, col2 = st.columns(2)
@@ -152,15 +147,12 @@ def show_profile(db: "Client") -> None:
 
     st.divider()
 
-    # Profile Management
     st.subheader("My Profiles")
     st.info("You can create multiple profiles to participate in different pools.")
 
-    # Get user profiles
     profiles = db.table("profiles").select("*").eq("user_id", user_id).execute()
 
     if profiles.data:
-        # Display profiles in a table
         profile_data = []
         for profile in profiles.data:
             profile_data.append(
@@ -173,7 +165,6 @@ def show_profile(db: "Client") -> None:
 
         st.dataframe(profile_data, use_container_width=True)
 
-    # Add new profile
     st.subheader("Create New Profile")
 
     with st.form("new_profile_form"):
@@ -183,7 +174,6 @@ def show_profile(db: "Client") -> None:
 
         if submitted:
             if profile_name and display_name:
-                # Check if profile name exists
                 existing = (
                     db.table("profiles")
                     .select("*")

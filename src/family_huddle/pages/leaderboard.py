@@ -27,7 +27,6 @@ def show(db: "Client") -> None:
         st.warning("Please select or create a profile first!")
         st.stop()
 
-    # Get user's pools
     participants = (
         db.table("pool_participants")
         .select("*")
@@ -39,7 +38,6 @@ def show(db: "Client") -> None:
         st.info("You haven't joined any pools yet!")
         return
 
-    # Pool selector
     pool_options = []
     pool_map = {}
 
@@ -55,7 +53,6 @@ def show(db: "Client") -> None:
 
     st.divider()
 
-    # Display pool info
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -65,7 +62,6 @@ def show(db: "Client") -> None:
         st.metric("Season", selected_pool["season_year"])
 
     with col3:
-        # Get participant count
         all_participants = (
             db.table("pool_participants")
             .select("*")
@@ -74,7 +70,6 @@ def show(db: "Client") -> None:
         )
         st.metric("Participants", len(all_participants.data) if all_participants.data else 0)
 
-    # Tab layout for different views
     tab1, tab2, tab3 = st.tabs(["Overall Standings", "Weekly Performance", "Team Performance"])
 
     with tab1:
@@ -99,7 +94,6 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
     """
     st.subheader("Overall Standings")
 
-    # Get all participants
     participants = (
         db.table("pool_participants").select("*").eq("pool_id", pool["pool_id"]).execute()
     )
@@ -108,11 +102,9 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
         st.info("No participants in this pool yet.")
         return
 
-    # Build standings data
     standings_data = []
 
     for participant in participants.data:
-        # Get profile info
         profile = (
             db.table("profiles")
             .select("*")
@@ -121,7 +113,6 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
             .data[0]
         )
 
-        # Get latest score (mock data for now)
         scores = (
             db.table("pool_scores")
             .select("*")
@@ -130,12 +121,9 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
             .execute()
         )
 
-        # Mock some data if no scores exist
         if not scores.data:
-            # Create mock score
             import random
 
-            # Get a real week_id from the database
             weeks = db.table("nfl_weeks").select("*").limit(1).execute()
             week_id = weeks.data[0]["week_id"] if weeks.data else None
 
@@ -151,7 +139,6 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
         else:
             total_points = scores.data[-1]["total_points"]
 
-        # Get team selections
         selections = (
             db.table("team_selections")
             .select("*")
@@ -182,15 +169,12 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
             }
         )
 
-    # Sort by total points and assign ranks
     standings_data.sort(key=lambda x: x["Total Points"], reverse=True)
     for i, standing in enumerate(standings_data):
         standing["Rank"] = i + 1
 
-    # Display as dataframe
     df = pd.DataFrame(standings_data)
 
-    # Highlight current user
     current_profile_name = st.session_state.current_profile["display_name"]
 
     def highlight_user(row: Any) -> list[str]:
@@ -201,7 +185,6 @@ def show_overall_standings(db: "Client", pool: dict[str, Any]) -> None:
     styled_df = df.style.apply(highlight_user, axis=1)
     st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
-    # Show points distribution chart
     if len(standings_data) > 1:
         st.subheader("Points Distribution")
 
@@ -229,14 +212,11 @@ def show_weekly_performance(db: "Client", pool: dict[str, Any]) -> None:
     """
     st.subheader("Weekly Performance")
 
-    # This would show weekly trends
     st.info("Weekly performance tracking will be available once the season starts!")
 
-    # Mock weekly data visualization
     weeks = list(range(1, 8))
     mock_data = []
 
-    # Get a few participants for demo
     participants = (
         db.table("pool_participants").select("*").eq("pool_id", pool["pool_id"]).execute()
     )
@@ -295,7 +275,6 @@ def show_team_performance(db: "Client", pool: dict[str, Any]) -> None:
     """
     st.subheader("Team Performance Analysis")
 
-    # Get all team selections for the pool
     all_selections = (
         db.table("team_selections").select("*").eq("pool_id", pool["pool_id"]).execute()
     )
@@ -304,7 +283,6 @@ def show_team_performance(db: "Client", pool: dict[str, Any]) -> None:
         st.info("No teams have been selected yet.")
         return
 
-    # Count team selections
     team_counts = {}
     team_performance = {}
 
@@ -316,7 +294,6 @@ def show_team_performance(db: "Client", pool: dict[str, Any]) -> None:
 
         if team_name not in team_counts:
             team_counts[team_name] = 0
-            # Mock performance data
             import random
 
             team_performance[team_name] = {
@@ -328,7 +305,6 @@ def show_team_performance(db: "Client", pool: dict[str, Any]) -> None:
 
         team_counts[team_name] += 1
 
-    # Most selected teams
     st.markdown("#### Most Popular Teams")
 
     popular_df = pd.DataFrame(
@@ -344,7 +320,6 @@ def show_team_performance(db: "Client", pool: dict[str, Any]) -> None:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # Team performance table
     st.markdown("#### Team Performance")
 
     perf_data = []

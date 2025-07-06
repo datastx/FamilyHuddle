@@ -20,22 +20,18 @@ def show(db: "Client") -> None:
     """
     st.title("🏈 Family Football Pool - Home")
 
-    # Welcome message
     user = db.table("users").select("*").eq("user_id", st.session_state.user_id).execute().data[0]
     st.markdown(f"### Welcome back, {user['first_name']}!")
 
-    # Get current profile
     current_profile = st.session_state.current_profile
 
     if not current_profile:
         st.warning("Please select or create a profile to get started!")
         st.stop()
 
-    # Dashboard columns
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        # Active pools count
         participant_count = (
             db.table("pool_participants")
             .select("*")
@@ -46,7 +42,6 @@ def show(db: "Client") -> None:
         st.metric("Active Pools", len(participant_count.data) if participant_count.data else 0)
 
     with col2:
-        # Total teams selected
         selections = (
             db.table("team_selections")
             .select("*")
@@ -57,13 +52,10 @@ def show(db: "Client") -> None:
         st.metric("Teams Selected", len(selections.data) if selections.data else 0)
 
     with col3:
-        # Current week
         current_week = _get_current_week()
         st.metric("Current Week", f"Week {current_week}")
 
     st.divider()
-
-    # Quick Actions
     st.subheader("Quick Actions")
 
     col1, col2 = st.columns(2)
@@ -82,10 +74,8 @@ def show(db: "Client") -> None:
 
     st.divider()
 
-    # Recent Activity
     st.subheader("Recent Activity")
 
-    # Get user's pools
     pools_data = []
     participants = (
         db.table("pool_participants")
@@ -96,12 +86,10 @@ def show(db: "Client") -> None:
 
     if participants.data:
         for participant in participants.data:
-            # Get pool info
             pool = db.table("pools").select("*").eq("pool_id", participant["pool_id"]).execute()
 
             if pool.data:
                 pool_info = pool.data[0]
-                # Get latest score
                 scores = (
                     db.table("pool_scores")
                     .select("*")
@@ -127,7 +115,6 @@ def show(db: "Client") -> None:
     else:
         st.info("You haven't joined any pools yet. Get started by joining or creating a pool!")
 
-    # NFL News/Updates placeholder
     st.divider()
     st.subheader("🏈 NFL Updates")
     st.info("NFL news and updates will appear here once the season starts!")
@@ -139,7 +126,6 @@ def _get_current_week() -> int:
     Returns:
         int: Current NFL week number (0 if before season, 1-18 during season).
     """
-    # Simple calculation - would be replaced with actual NFL data
     season_start = datetime(datetime.now().year, 9, 7)
     if datetime.now() < season_start:
         return 0

@@ -264,6 +264,9 @@ mypy: uv $(UV_LOCK) ## Run mypy type checker
 	@echo -e "$(BOLD)Running mypy...$(RESET)"
 	$(UV) run mypy $(SRC_DIR)
 
+.PHONY: type-check
+type-check: mypy ## Alias for mypy (for CI compatibility)
+
 .PHONY: pylint
 pylint: uv $(UV_LOCK) ## Run pylint
 	@echo -e "$(BOLD)Running pylint...$(RESET)"

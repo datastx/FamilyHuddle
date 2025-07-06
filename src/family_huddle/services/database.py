@@ -17,6 +17,7 @@ except ImportError as e:
 
 try:
     import streamlit as st
+
     _STREAMLIT_AVAILABLE = True
 except ImportError:
     _STREAMLIT_AVAILABLE = False
@@ -24,18 +25,16 @@ except ImportError:
 
 def _get_config_value(key: str, streamlit_path: str | None = None) -> str | None:
     """Get configuration value from Streamlit secrets or environment variables.
-    
+
     Args:
         key: Environment variable key to look for.
         streamlit_path: Path in Streamlit secrets (e.g., "supabase.url").
-        
+
     Returns:
         str | None: Configuration value if found, None otherwise.
     """
-    # Try Streamlit secrets first (for production deployment)
     if _STREAMLIT_AVAILABLE and streamlit_path:
         try:
-            # Navigate through nested keys (e.g., "supabase.url" -> st.secrets["supabase"]["url"])
             keys = streamlit_path.split(".")
             value = st.secrets
             for k in keys:
@@ -43,8 +42,7 @@ def _get_config_value(key: str, streamlit_path: str | None = None) -> str | None
             return str(value)
         except (KeyError, AttributeError):
             pass
-    
-    # Fall back to environment variables (for local development)
+
     return os.getenv(key)
 
 

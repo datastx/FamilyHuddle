@@ -88,7 +88,7 @@ install: uv $(UV_LOCK) ## Install production dependencies
 .PHONY: install-dev
 install-dev: uv $(UV_LOCK) ## Install all dependencies including dev
 	@echo -e "$(BOLD)Installing all dependencies...$(RESET)"
-	$(UV) sync --frozen
+	$(UV) sync --frozen --all-extras
 
 .PHONY: install-all
 install-all: uv $(UV_LOCK) ## Install all optional dependency groups
@@ -148,6 +148,67 @@ run: uv ## Run the Streamlit application
 
 .PHONY: init-data
 init-data: uv ## Initialize local database with NFL teams and sample data
+	$(UV) run python scripts/init_data.py
+
+# Supabase Development
+# ============================================================================
+
+##@ Supabase Development
+
+.PHONY: supabase-start
+supabase-start: ## Start local Supabase stack
+	@echo -e "$(BOLD)Starting local Supabase stack...$(RESET)"
+	supabase start
+
+.PHONY: supabase-stop
+supabase-stop: ## Stop local Supabase stack
+	@echo -e "$(BOLD)Stopping local Supabase stack...$(RESET)"
+	supabase stop
+
+.PHONY: supabase-status
+supabase-status: ## Show Supabase stack status
+	supabase status
+
+.PHONY: supabase-reset
+supabase-reset: ## Reset local Supabase database
+	@echo -e "$(BOLD)Resetting local Supabase database...$(RESET)"
+	supabase db reset
+
+.PHONY: supabase-studio
+supabase-studio: ## Open Supabase Studio (web interface)
+	@echo -e "$(GREEN)Opening Supabase Studio at http://localhost:54323$(RESET)"
+	@if command -v open &> /dev/null; then \
+		open http://localhost:54323; \
+	elif command -v xdg-open &> /dev/null; then \
+		xdg-open http://localhost:54323; \
+	else \
+		echo -e "$(YELLOW)Please open http://localhost:54323 manually$(RESET)"; \
+	fi
+
+.PHONY: run-supabase
+run-supabase: use-local supabase-start init-data-supabase ## Complete local setup: switch env, start Supabase, init data, run app
+	@echo -e "$(BOLD)Starting app with local Supabase...$(RESET)"
+	$(UV) run streamlit run app.py
+
+.PHONY: local
+local: run-supabase ## Alias for run-supabase (shorter to type)
+
+.PHONY: use-local
+use-local: ## Switch to local Supabase environment
+	@echo -e "$(BOLD)Switching to local Supabase...$(RESET)"
+	@cp .env.local .env
+	@echo -e "$(GREEN)✓ Using local Supabase at http://127.0.0.1:54321$(RESET)"
+
+.PHONY: use-production
+use-production: ## Switch to production Supabase environment
+	@echo -e "$(BOLD)$(RED)Switching to production Supabase...$(RESET)"
+	@cp .env.production .env
+	@echo -e "$(YELLOW)⚠️  Using production database!$(RESET)"
+
+.PHONY: init-data-supabase
+init-data-supabase: uv use-local ## Initialize Supabase database with NFL teams and sample data
+	@echo -e "$(BOLD)Resetting Supabase database and applying migrations...$(RESET)"
+	supabase db reset
 	$(UV) run python scripts/init_data.py
 
 .PHONY: run-local

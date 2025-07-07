@@ -67,8 +67,11 @@ jobs:
 
     - name: Test devcontainer build
       run: |
+        # Get the first tag from the metadata output (lowercase)
+        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+        
         # Create a test container from the built image
-        CONTAINER_ID=$(docker create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }})
+        CONTAINER_ID=$(docker create $IMAGE_TAG)
         
         # Start the container
         docker start $CONTAINER_ID

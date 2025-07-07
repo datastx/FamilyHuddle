@@ -1,0 +1,133 @@
+name: DevContainer CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '.devcontainer/**'
+      - '.github/workflows/devcontainer-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - '.devcontainer/**'
+      - '.github/workflows/devcontainer-ci.yml'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-devcontainer
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to GitHub Container Registry
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build devcontainer image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./.devcontainer/Dockerfile
+        push: false
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        load: true
+
+    - name: Test devcontainer build
+      run: |
+        # Create a test container from the built image
+        CONTAINER_ID=$(docker create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }})
+        
+        # Start the container
+        docker start $CONTAINER_ID
+        
+        # Run basic tests to verify the container works
+        echo "Testing Python installation..."
+        docker exec $CONTAINER_ID python --version
+        
+        echo "Testing UV installation..."
+        docker exec $CONTAINER_ID uv --version
+        
+        echo "Testing project setup..."
+        # Copy project files into container for testing
+        docker cp . $CONTAINER_ID:/workspace
+        
+        # Run the CI install and test commands
+        echo "Installing dependencies..."
+        docker exec -w /workspace $CONTAINER_ID make ci-install
+        
+        echo "Running linting..."
+        docker exec -w /workspace $CONTAINER_ID make ci-lint
+        
+        echo "Running tests..."
+        docker exec -w /workspace $CONTAINER_ID make ci-test
+        
+        # Clean up
+        docker stop $CONTAINER_ID
+        docker rm $CONTAINER_ID
+
+    - name: Push image to GitHub Container Registry
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./.devcontainer/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  test-devcontainer-features:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Test devcontainer features
+      uses: devcontainers/ci@v0.3
+      with:
+        configFile: ./.devcontainer/devcontainer.json
+        push: never
+        runCmd: |
+          # Test that all expected tools are available
+          python --version
+          uv --version
+          node --version
+          npm --version
+          
+          # Test that the project can be set up
+          make ci-install
+          make ci-test

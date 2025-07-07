@@ -28,6 +28,11 @@ SRC_DIR := src
 TEST_DIR := tests
 DOCS_DIR := docs
 
+# Supabase Configuration
+LOCAL_SUPABASE_URL := http://127.0.0.1:54321
+LOCAL_SUPABASE_ANON_KEY := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+LOCAL_SUPABASE_SERVICE_KEY := eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+
 # Unix-only configuration
 VENV_BIN := .venv/bin
 PYTHON := $(VENV_BIN)/python
@@ -160,22 +165,33 @@ init-data: uv ## Initialize local database with NFL teams and sample data
 
 ##@ Supabase Development
 
+.PHONY: supabase-install
+supabase-install: ## Install Supabase CLI if not present
+	@which supabase > /dev/null 2>&1 || ( \
+		echo "Installing Supabase CLI..." && \
+		mkdir -p ~/.local/bin && \
+		curl -L "https://github.com/supabase/cli/releases/latest/download/supabase_linux_arm64.tar.gz" | tar -xz -C ~/.local/bin && \
+		chmod +x ~/.local/bin/supabase && \
+		echo 'export PATH="$$HOME/.local/bin:$$PATH"' >> ~/.bashrc && \
+		export PATH="$$HOME/.local/bin:$$PATH" \
+	)
+
 .PHONY: supabase-start
-supabase-start: ## Start local Supabase stack
+supabase-start: supabase-install ## Start local Supabase stack
 	@echo -e "$(BOLD)Starting local Supabase stack...$(RESET)"
 	supabase start
 
 .PHONY: supabase-stop
-supabase-stop: ## Stop local Supabase stack
+supabase-stop: supabase-install ## Stop local Supabase stack
 	@echo -e "$(BOLD)Stopping local Supabase stack...$(RESET)"
 	supabase stop
 
 .PHONY: supabase-status
-supabase-status: ## Show Supabase stack status
+supabase-status: supabase-install ## Show Supabase stack status
 	supabase status
 
 .PHONY: supabase-reset
-supabase-reset: ## Reset local Supabase database
+supabase-reset: supabase-install ## Reset local Supabase database
 	@echo -e "$(BOLD)Resetting local Supabase database...$(RESET)"
 	supabase db reset
 
@@ -191,12 +207,34 @@ supabase-studio: ## Open Supabase Studio (web interface)
 	fi
 
 .PHONY: run-supabase
-run-supabase: use-local supabase-start init-data-supabase ## Complete local setup: switch env, start Supabase, init data, run app
+run-supabase: supabase-start init-data-supabase ## Complete local setup: start Supabase, init data, run app
 	@echo -e "$(BOLD)Starting app with local Supabase...$(RESET)"
+	@unset SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY && \
+	SUPABASE_URL=$(LOCAL_SUPABASE_URL) \
+	SUPABASE_ANON_KEY=$(LOCAL_SUPABASE_ANON_KEY) \
+	SUPABASE_SERVICE_KEY=$(LOCAL_SUPABASE_SERVICE_KEY) \
 	$(UV) run streamlit run app.py
 
 .PHONY: local
-local: run-supabase ## Alias for run-supabase (shorter to type)
+local: supabase-start init-data-local run-local-app ## Complete local development setup
+
+.PHONY: init-data-local
+init-data-local: uv ## Initialize local database with sample data
+	@echo -e "$(BOLD)Initializing local database...$(RESET)"
+	@unset SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY && \
+	SUPABASE_URL=$(LOCAL_SUPABASE_URL) \
+	SUPABASE_ANON_KEY=$(LOCAL_SUPABASE_ANON_KEY) \
+	SUPABASE_SERVICE_KEY=$(LOCAL_SUPABASE_SERVICE_KEY) \
+	$(UV) run python scripts/init_data.py
+
+.PHONY: run-local-app
+run-local-app: uv ## Run app with local Supabase
+	@echo -e "$(BOLD)Running app with local Supabase...$(RESET)"
+	@unset SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY && \
+	SUPABASE_URL=$(LOCAL_SUPABASE_URL) \
+	SUPABASE_ANON_KEY=$(LOCAL_SUPABASE_ANON_KEY) \
+	SUPABASE_SERVICE_KEY=$(LOCAL_SUPABASE_SERVICE_KEY) \
+	$(UV) run streamlit run app.py
 
 .PHONY: use-local
 use-local: ## Switch to local Supabase environment
@@ -211,9 +249,13 @@ use-production: ## Switch to production Supabase environment
 	@echo -e "$(YELLOW)⚠️  Using production database!$(RESET)"
 
 .PHONY: init-data-supabase
-init-data-supabase: uv use-local ## Initialize Supabase database with NFL teams and sample data
+init-data-supabase: uv supabase-install ## Initialize Supabase database with NFL teams and sample data
 	@echo -e "$(BOLD)Resetting Supabase database and applying migrations...$(RESET)"
-	supabase db reset
+	sudo /home/vscode/.local/bin/supabase db reset
+	@unset SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY && \
+	SUPABASE_URL=$(LOCAL_SUPABASE_URL) \
+	SUPABASE_ANON_KEY=$(LOCAL_SUPABASE_ANON_KEY) \
+	SUPABASE_SERVICE_KEY=$(LOCAL_SUPABASE_SERVICE_KEY) \
 	$(UV) run python scripts/init_data.py
 
 .PHONY: run-local

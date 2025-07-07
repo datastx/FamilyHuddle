@@ -3,12 +3,8 @@
 import os
 from typing import TYPE_CHECKING
 
-from dotenv import load_dotenv
-
 if TYPE_CHECKING:
     from supabase import Client
-
-load_dotenv()
 
 try:
     from supabase import create_client as create_supabase_client
@@ -86,5 +82,4 @@ def create_admin_client() -> "Client":
             "Set SUPABASE_URL and SUPABASE_SERVICE_KEY in environment variables "
             "or configure supabase.url and supabase.service_key in Streamlit secrets."
         )
-
     return create_supabase_client(supabase_url, supabase_key)

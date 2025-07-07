@@ -1,33 +1,63 @@
 {
-  "name": "Python 3",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bullseye",
-  "customizations": {
-    "codespaces": {
-      "openFiles": [
-        "README.md",
-        "app.py"
-      ]
-    },
-    "vscode": {
-      "settings": {},
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
-      ]
-    }
-  },
-  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
-  "postAttachCommand": {
-    "server": "streamlit run app.py --server.enableCORS false --server.enableXsrfProtection false"
-  },
-  "portsAttributes": {
-    "8501": {
-      "label": "Application",
-      "onAutoForward": "openPreview"
-    }
-  },
-  "forwardPorts": [
-    8501
-  ]
+	"name": "FamilyHuddle Dev Container",
+	"dockerComposeFile": "docker-compose.yml",
+	"service": "app",
+	"workspaceFolder": "/workspace",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"moby": true,
+			"installDockerBuildx": true,
+			"version": "latest",
+			"dockerDashComposeVersion": "v2"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "18"
+		}
+	},
+	"postCreateCommand": "sudo usermod -aG docker vscode && cd /tmp && curl -sSfL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar -xz && sudo mv supabase /usr/local/bin/supabase && sudo chmod +x /usr/local/bin/supabase",
+	"postStartCommand": "sudo chmod 666 /var/run/docker.sock || true",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.black-formatter",
+				"charliermarsh.ruff",
+				"ms-azuretools.vscode-docker"
+			],
+			"settings": {
+				"python.defaultInterpreterPath": "/workspace/.venv/bin/python",
+				"python.terminal.activateEnvironment": true,
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": false,
+				"python.formatting.provider": "black",
+				"[python]": {
+					"editor.formatOnSave": true,
+					"editor.codeActionsOnSave": {
+						"source.organizeImports": "explicit"
+					}
+				}
+			}
+		}
+	},
+	"portsAttributes": {
+		"8501": {
+			"label": "Streamlit App",
+			"onAutoForward": "openPreview"
+		},
+		"54321": {
+			"label": "Supabase Studio",
+			"onAutoForward": "notify"
+		},
+		"54322": {
+			"label": "Supabase Inbucket",
+			"onAutoForward": "notify"
+		},
+		"54323": {
+			"label": "Supabase DB",
+			"onAutoForward": "ignore"
+		}
+	},
+	"forwardPorts": [8501, 54321, 54322, 54323],
+	"remoteUser": "vscode"
 }

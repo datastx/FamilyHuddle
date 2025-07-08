@@ -18,6 +18,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  # Convert repository name to lowercase for Docker compatibility
   IMAGE_NAME: ${{ github.repository }}-devcontainer
 
 jobs:
